@@ -114,40 +114,107 @@ filtered_df = df[
 # -------------------------
 st.subheader("📌 Key Metrics")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 col1.metric("Total Candidates", len(filtered_df))
 
 if "Total_Hiring_Time" in filtered_df.columns:
-    col2.metric("Avg Hiring Time", round(filtered_df["Total_Hiring_Time"].mean(), 2))
+    col2.metric("Avg Hiring Time (days)", round(filtered_df["Total_Hiring_Time"].mean(), 2))
 
 if "Offer_to_Join" in filtered_df.columns:
-    col3.metric("Offer → Join Time", round(filtered_df["Offer_to_Join"].mean(), 2))
+    col3.metric("Offer → Join Time (days)", round(filtered_df["Offer_to_Join"].mean(), 2))
+
+if "Status" in filtered_df.columns and len(filtered_df) > 0:
+    selection_rate = round((filtered_df["Status"] == "Selected").mean() * 100, 1)
+    col4.metric("Selection Rate", f"{selection_rate}%")
 
 # -------------------------
-# VISUALS
+# VISUAL 1 & 2: Hiring Time by Role + Source Distribution
 # -------------------------
 st.subheader("📈 Visual Insights")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.write("### Hiring Time by Role")
+    st.write("### 1. Avg Hiring Time by Role")
     fig, ax = plt.subplots()
-    sns.barplot(data=filtered_df, x="Job_Role", y="Total_Hiring_Time", ax=ax)
+    sns.barplot(data=filtered_df, x="Job_Role", y="Total_Hiring_Time", ax=ax, errorbar=None)
     plt.xticks(rotation=45)
+    plt.ylabel("Avg Hiring Time (days)")
     st.pyplot(fig)
 
 with col2:
-    st.write("### Source Distribution")
+    st.write("### 2. Source Distribution")
     fig, ax = plt.subplots()
     filtered_df["Source"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
+    ax.set_ylabel("")
+    st.pyplot(fig)
+
+# -------------------------
+# VISUAL 3 & 4: Hiring Time Spread by Role (Boxplot) + Applications by Recruiter
+# -------------------------
+col3, col4 = st.columns(2)
+
+with col3:
+    st.write("### 3. Hiring Time Spread by Role")
+    fig, ax = plt.subplots()
+    sns.boxplot(data=filtered_df, x="Job_Role", y="Total_Hiring_Time", ax=ax)
+    plt.xticks(rotation=45)
+    plt.ylabel("Total Hiring Time (days)")
+    st.pyplot(fig)
+
+with col4:
+    st.write("### 4. Applications Handled per Recruiter")
+    fig, ax = plt.subplots()
+    sns.countplot(data=filtered_df, x="Recruiter_ID", ax=ax, order=sorted(filtered_df["Recruiter_ID"].dropna().unique()))
+    plt.ylabel("Number of Applications")
+    st.pyplot(fig)
+
+# -------------------------
+# VISUAL 5 & 6: Avg Hiring Time by Source + Selected vs Rejected by Role
+# -------------------------
+col5, col6 = st.columns(2)
+
+with col5:
+    st.write("### 5. Avg Hiring Time by Source")
+    fig, ax = plt.subplots()
+    sns.barplot(data=filtered_df, x="Source", y="Total_Hiring_Time", ax=ax, errorbar=None)
+    plt.xticks(rotation=45)
+    plt.ylabel("Avg Hiring Time (days)")
+    st.pyplot(fig)
+
+with col6:
+    st.write("### 6. Selected vs Rejected by Role")
+    fig, ax = plt.subplots()
+    sns.countplot(data=filtered_df, x="Job_Role", hue="Status", ax=ax)
+    plt.xticks(rotation=45)
+    plt.ylabel("Number of Candidates")
+    st.pyplot(fig)
+
+# -------------------------
+# VISUAL 7 & 8: Distribution Histogram + Stage Correlation Heatmap
+# -------------------------
+col7, col8 = st.columns(2)
+
+with col7:
+    st.write("### 7. Distribution of Total Hiring Time")
+    fig, ax = plt.subplots()
+    sns.histplot(filtered_df["Total_Hiring_Time"].dropna(), bins=20, kde=True, ax=ax)
+    plt.xlabel("Total Hiring Time (days)")
+    st.pyplot(fig)
+
+with col8:
+    st.write("### 8. Correlation Between Hiring Stages")
+    stage_cols = ["App_to_Screen", "Screen_to_Interview", "Interview_to_Offer", "Offer_to_Join"]
+    fig, ax = plt.subplots()
+    corr = filtered_df[stage_cols].corr()
+    sns.heatmap(corr, annot=True, cmap="Blues", ax=ax)
     st.pyplot(fig)
 
 # -------------------------
 # FUNNEL ANALYSIS
 # -------------------------
-st.subheader("⏳ Hiring Funnel")
+st.subheader("⏳ Hiring Funnel — Avg Days per Stage")
 
 stage_cols = [
     "App_to_Screen",
@@ -204,5 +271,7 @@ if "Total_Hiring_Time" in filtered_df.columns:
 
     st.write(f"""
     - 📌 Average hiring time: **{avg_time} days**
-    - 🎯 Top source: **{top_source}**
+    - 🎯 Most-used source: **{top_source}**
+    - 🏆 Fastest hiring role on average: **{filtered_df.groupby('Job_Role')['Total_Hiring_Time'].mean().idxmin()}**
     """)
+    
